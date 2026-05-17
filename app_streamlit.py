@@ -838,3 +838,46 @@ map_html = f"""
 """
 
 st.iframe(map_html, height=700)
+
+with st.expander("Mapped place data", expanded=False):
+    st.dataframe(
+        mapped[
+            [
+                "name",
+                "neighborhood",
+                "type",
+                "year built",
+                "year demolished",
+                "lat",
+                "lon",
+                "cause",
+                "replacement",
+                "source",
+                "Description/Comments",
+                "Contributor",
+            ]
+        ],
+        width="stretch",
+        hide_index=True,
+    )
+
+if not unmapped.empty:
+    with st.expander("Rows missing coordinates", expanded=True):
+        st.dataframe(
+            unmapped[
+                [
+                    "name",
+                    "neighborhood",
+                    "type",
+                    "year built",
+                    "year demolished",
+                    "cause",
+                    "replacement",
+                    "source",
+                    "Description/Comments",
+                    "Contributor",
+                ]
+            ],
+            width="stretch",
+            hide_index=True,
+        )
