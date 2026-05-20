@@ -32,6 +32,15 @@ era_colors = {
     "Market-Driven Era\n(1990-present)":"rgba(200,154,60,0.2)",
 }
 
+sunburst_colors = {
+    "Lost Chicago":"#f2efe6",
+    "1800s":"#d4532a",
+    "1900s":"#4a6741",
+    "2000s":"#c89a3c",
+    "Unknown":"#aaaaaa",
+    "Other":"#7a6a5a",
+}
+
 st.set_page_config(
     page_title="Lost Chicago Map",
     page_icon="map",
@@ -55,6 +64,33 @@ def format_year(value: object) -> str:
         return clean_text(value)
 
 
+def format_decade(value: object) -> str:
+    if pd.isna(value):
+        return "Unknown"
+    try:
+        year = int(float(value))
+    except (TypeError, ValueError):
+        return clean_text(value)
+    decade = year // 10 * 10
+    return f"{decade}s"
+
+
+def format_century_group(value: object) -> str:
+    if pd.isna(value):
+        return "Unknown"
+    try:
+        year = int(float(value))
+    except (TypeError, ValueError):
+        return clean_text(value)
+    if 1800 <= year <= 1899:
+        return "1800s"
+    if 1900 <= year <= 1999:
+        return "1900s"
+    if 2000 <= year <= 2099:
+        return "2000s"
+    return "Other"
+
+
 def normalize_category(value: object, fallback: str = "Unknown") -> str:
     text = clean_text(value, fallback)
     normalized = " ".join(text.replace("/", " / ").split())
@@ -65,6 +101,16 @@ def normalize_category(value: object, fallback: str = "Unknown") -> str:
         "Urban renewal": "Urban Renewal",
     }
     return replacements.get(normalized, normalized)
+
+
+def apply_sunburst_center_color(fig: go.Figure, center_label: str, color: str) -> None:
+    for trace in fig.data:
+        labels = list(trace.labels)
+        colors = list(trace.marker.colors)
+        for index, label in enumerate(labels):
+            if label == center_label:
+                colors[index] = color
+        trace.marker.colors = colors
 
 
 @st.cache_data
@@ -99,17 +145,17 @@ def load_data() -> pd.DataFrame:
     return data
 
 
-def structure_breakdown(data: pd.DataFrame) -> pd.DataFrame:
+def built_century_structure_breakdown(data: pd.DataFrame) -> pd.DataFrame:
     breakdown = data.assign(
+        built_century=data["year built"].map(format_century_group),
         structure_type=data["type"].map(normalize_category),
-        demolition_era=data["era"].map(clean_text),
     )
 
     return (
-        breakdown.groupby(["structure_type", "demolition_era"], dropna=False)
+        breakdown.groupby(["built_century", "structure_type"], dropna=False)
         .size()
         .reset_index(name="places")
-        .sort_values(["places", "structure_type", "demolition_era"], ascending=[False, True, True])
+        .sort_values(["built_century", "places", "structure_type"], ascending=[True, False, True])
     )
 
 
@@ -162,7 +208,7 @@ data = load_data()
 
 st.title("Chicago's Lost Places")
 st.markdown("This dashboard digs deeper into 100 cases of demolition across Chicago's historic structures. It traces patterns of loss across time, cause, replacement types, and neighborhoods. Scroll down to explore the stories behind these losses and how they reflect the city's evolving priorities and challenges." \
-"The data is sourced from various sources, including a Ellen Harvey's the Disappointed Tourist Project, Chicago Yimby, Chicagology, Preservation Chicago, and other online sources that documented the demolished cultural sites across the city. "\
+"The data is sourced from various sources, including Ellen Harvey's the Disappointed Tourist Project, Chicago Yimby, Chicagology, Preservation Chicago, and other online sources that documented the demolished cultural sites across the city. "\
     "We manually selected 100 cases that are culturally and architecturally significant, representing a range of structure types, neighborhoods, demolition eras, and causes of loss. The dataset is not comprehensive but aims to provide a snapshot of the city's lost landmarks and the stories they tell about Chicago's history and development.")
 st.divider()
 
@@ -205,21 +251,22 @@ metric_1.metric("Filtered places", len(filtered))
 metric_2.metric("Mapped pins", len(mapped))
 metric_3.metric("Missing coordinates", len(unmapped))
 
-st.subheader("Structure Type Breakdown")
-breakdown = structure_breakdown(filtered)
+st.subheader("Built Era by Structure Type")
+breakdown = built_century_structure_breakdown(filtered)
 
 if breakdown.empty:
-    st.info("No structure types match the current filters.")
+    st.info("No built-year groups match the current filters.")
 else:
     sunburst = px.sunburst(
         breakdown,
-        path=[px.Constant("Lost Chicago"), "structure_type", "demolition_era"],
+        path=[px.Constant("Lost Chicago"), "built_century", "structure_type"],
         values="places",
-        color="structure_type",
-        hover_data={"places": ":,", "structure_type": False, "demolition_era": False},
+        color="built_century",
+        color_discrete_map=sunburst_colors,
+        hover_data={"places": ":,", "built_century": False, "structure_type": False},
         labels={
+            "built_century": "Year built",
             "structure_type": "Structure type",
-            "demolition_era": "Era demolished",
             "places": "Lost places",
         },
     )
@@ -241,19 +288,20 @@ else:
         hovermode="closest",
         uniformtext=dict(minsize=11, mode="hide"),
     )
+    apply_sunburst_center_color(sunburst, "Lost Chicago", sunburst_colors["Lost Chicago"])
     st.plotly_chart(sunburst, width="stretch")
     st.markdown(
-        "The middle ring groups places by structure type. The outer ring breaks each "
-        "structure type into demolition eras; larger slices represent more places in "
-        "the current filters. Hover over any slice to see its count and share."
+        "The middle ring groups places by built-year era. The outer ring breaks each "
+        "era into structure types; larger slices represent more places in the current "
+        "filters. Hover over any slice to see its count and share."
     )
 
-    with st.expander("Structure type counts", expanded=False):
+    with st.expander("Built era and structure type counts", expanded=False):
         st.dataframe(
             breakdown.rename(
                 columns={
+                    "built_century": "Year built",
                     "structure_type": "Structure type",
-                    "demolition_era": "Era demolished",
                     "places": "Lost places",
                 }
             ),
