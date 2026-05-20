@@ -102,14 +102,14 @@ def load_data() -> pd.DataFrame:
 def structure_breakdown(data: pd.DataFrame) -> pd.DataFrame:
     breakdown = data.assign(
         structure_type=data["type"].map(normalize_category),
-        loss_cause=data["cause"].map(normalize_category),
+        demolition_era=data["era"].map(clean_text),
     )
 
     return (
-        breakdown.groupby(["structure_type", "loss_cause"], dropna=False)
+        breakdown.groupby(["structure_type", "demolition_era"], dropna=False)
         .size()
         .reset_index(name="places")
-        .sort_values(["places", "structure_type", "loss_cause"], ascending=[False, True, True])
+        .sort_values(["places", "structure_type", "demolition_era"], ascending=[False, True, True])
     )
 
 
@@ -161,7 +161,9 @@ def load_geojson():
 data = load_data()
 
 st.title("Chicago's Lost Places")
-st.markdown("This dashboard digs deeper into 100 cases of demolition across Chicago's historic structures. It traces patterns of loss across time, cause, replacement types, and neighborhoods.")
+st.markdown("This dashboard digs deeper into 100 cases of demolition across Chicago's historic structures. It traces patterns of loss across time, cause, replacement types, and neighborhoods. Scroll down to explore the stories behind these losses and how they reflect the city's evolving priorities and challenges." \
+"The data is sourced from various sources, including a Ellen Harvey's the Disappointed Tourist Project, Chicago Yimby, Chicagology, Preservation Chicago, and other online sources that documented the demolished cultural sites across the city. "\
+    "We manually selected 100 cases that are culturally and architecturally significant, representing a range of structure types, neighborhoods, demolition eras, and causes of loss. The dataset is not comprehensive but aims to provide a snapshot of the city's lost landmarks and the stories they tell about Chicago's history and development.")
 st.divider()
 
 
@@ -211,13 +213,13 @@ if breakdown.empty:
 else:
     sunburst = px.sunburst(
         breakdown,
-        path=[px.Constant("Lost Chicago"), "structure_type", "loss_cause"],
+        path=[px.Constant("Lost Chicago"), "structure_type", "demolition_era"],
         values="places",
         color="structure_type",
-        hover_data={"places": ":,", "structure_type": False, "loss_cause": False},
+        hover_data={"places": ":,", "structure_type": False, "demolition_era": False},
         labels={
             "structure_type": "Structure type",
-            "loss_cause": "Cause",
+            "demolition_era": "Era demolished",
             "places": "Lost places",
         },
     )
@@ -240,9 +242,9 @@ else:
         uniformtext=dict(minsize=11, mode="hide"),
     )
     st.plotly_chart(sunburst, width="stretch")
-    st.caption(
+    st.markdown(
         "The middle ring groups places by structure type. The outer ring breaks each "
-        "structure type into causes of loss; larger slices represent more places in "
+        "structure type into demolition eras; larger slices represent more places in "
         "the current filters. Hover over any slice to see its count and share."
     )
 
@@ -251,7 +253,7 @@ else:
             breakdown.rename(
                 columns={
                     "structure_type": "Structure type",
-                    "loss_cause": "Cause",
+                    "demolition_era": "Era demolished",
                     "places": "Lost places",
                 }
             ),
@@ -328,7 +330,7 @@ else:
         yaxis=dict(autorange="reversed", title="Cause of loss"),
     )
     st.plotly_chart(loss_chart, width="stretch")
-    st.caption(
+    st.markdown(
         "Each cell shows how many places share a cause of loss and replacement "
         "category. Darker cells indicate more places; hover for the count and "
         "share within that cause."
