@@ -99,172 +99,6 @@ def load_data() -> pd.DataFrame:
     return data
 
 
-def google_search_url(query: str) -> str:
-    return f"https://www.google.com/search?{urlencode({'tbm': 'isch', 'q': query})}"
-
-
-def google_maps_place_url(lat: float, lon: float, query: str) -> str:
-    return (
-        "https://www.google.com/maps/search/?"
-        + urlencode({"api": "1", "query": f"{query} @{lat},{lon}"})
-    )
-
-
-def street_view_image_url(lat: float, lon: float, api_key: str) -> str:
-    return (
-        "https://maps.googleapis.com/maps/api/streetview?"
-        + urlencode(
-            {
-                "size": "320x180",
-                "location": f"{lat},{lon}",
-                "fov": "80",
-                "pitch": "0",
-                "key": api_key,
-            }
-        )
-    )
-
-
-def image_html(src: str, alt: str, fallback_url: str = "") -> str:
-    if not src:
-        return ""
-    safe_src = html.escape(src, quote=True)
-    safe_alt = html.escape(alt, quote=True)
-    if not fallback_url:
-        return f'<img class="popup-image" src="{safe_src}" alt="{safe_alt}" loading="lazy" />'
-
-    safe_fallback_url = html.escape(fallback_url, quote=True)
-    return (
-        f'<img class="popup-image" src="{safe_src}" alt="{safe_alt}" loading="lazy" '
-        "onerror=\"this.style.display='none';this.nextElementSibling.style.display='flex';\" />"
-        f'<a class="image-fallback" href="{safe_fallback_url}" target="_blank" '
-        'rel="noopener" style="display: none;">Find a historical photo on Google Images</a>'
-    )
-
-
-def image_fallback_html(fallback_url: str) -> str:
-    safe_fallback_url = html.escape(fallback_url, quote=True)
-    return (
-        f'<a class="image-fallback" href="{safe_fallback_url}" target="_blank" rel="noopener">'
-        "Find a historical photo on Google Images</a>"
-    )
-
-
-def marker_payload(
-    data: pd.DataFrame,
-    popup_mode: str,
-    api_key: str = "",
-) -> list[dict[str, object]]:
-    markers: list[dict[str, object]] = []
-    duplicate_positions = data.groupby(["lat", "lon"]).cumcount()
-    duplicate_counts = data.groupby(["lat", "lon"])["lat"].transform("size")
-
-    for row_position, (_, row) in enumerate(data.iterrows()):
-        name = clean_text(row.get("name"), "Lost Chicago site")
-        replacement = clean_text(row.get("replacement"))
-        source = clean_text(row.get("source"), "")
-        source_html = ""
-        if source:
-            if source.startswith(("http://", "https://")):
-                safe_source = html.escape(source, quote=True)
-                source_html = f'<a href="{safe_source}" target="_blank" rel="noopener">Source</a>'
-            else:
-                source_html = html.escape(source)
-
-        description = clean_text(row.get("Description/Comments"), "")
-        lat = float(row["lat"])
-        lon = float(row["lon"])
-        display_lat = lat
-        display_lon = lon
-        duplicate_count = int(duplicate_counts.iloc[row_position])
-
-        if duplicate_count > 1:
-            angle = 2 * math.pi * int(duplicate_positions.iloc[row_position]) / duplicate_count
-            offset = 0.00012
-            display_lat += math.sin(angle) * offset
-            display_lon += math.cos(angle) * offset
-
-        if popup_mode == "Replacement":
-            details = [
-                ("Replacement", replacement),
-                ("Category", clean_text(row.get("Replacement Categories"))),
-                ("Former site", name),
-                ("Neighborhood", clean_text(row.get("neighborhood"))),
-                ("Former type", clean_text(row.get("type"))),
-                ("Demolished", format_year(row.get("year demolished"))),
-            ]
-            street_view_src = street_view_image_url(lat, lon, api_key) if api_key else ""
-            maps_url = google_maps_place_url(lat, lon, replacement)
-            media_html = image_html(street_view_src, f"Google Street View near {replacement}")
-            heading = name
-            body = (
-                f'<p class="mode-note">Replacement: {html.escape(replacement)}. '
-                "Current Google Street View near the replacement site.</p>"
-                f'<footer><a href="{html.escape(maps_url, quote=True)}" target="_blank" rel="noopener">'
-                "Open replacement in Google Maps</a></footer>"
-            )
-        else:
-            details = [
-                ("Name", name),
-                ("Neighborhood", clean_text(row.get("neighborhood"))),
-                ("Type", clean_text(row.get("type"))),
-                ("Built", format_year(row.get("year built"))),
-                ("Demolished", format_year(row.get("year demolished"))),
-                ("Cause", clean_text(row.get("cause"))),
-                ("Replacement", replacement),
-            ]
-            old_photo_src = clean_text(row.get("img_link"), "")
-            image_search_url = google_search_url(f"{name} Chicago historic building")
-            media_html = image_html(
-                old_photo_src,
-                f"Historical image of {name}",
-                image_search_url,
-            )
-            if not media_html:
-                media_html = image_fallback_html(image_search_url)
-            heading = name
-            body = (
-                f'{f"<p>{html.escape(description)}</p>" if description else ""}'
-                f'<footer><a href="{html.escape(image_search_url, quote=True)}" target="_blank" rel="noopener">'
-                "Search Google Images for historical photos</a>"
-                f'{" · " + source_html if source_html else ""}</footer>'
-            )
-
-        detail_html = "".join(
-            f"<dt>{html.escape(label)}</dt><dd>{html.escape(value)}</dd>"
-            for label, value in details
-            if value != "Unknown"
-        )
-
-        content = f"""
-            <article class="info-window">
-                {media_html}
-                <p class="popup-kicker">{html.escape(popup_mode)}</p>
-                <h2>{html.escape(heading)}</h2>
-                <dl>{detail_html}</dl>
-                {body}
-            </article>
-        """
-
-        markers.append(
-            {
-                "title": name,
-                "lat": lat,
-                "lng": lon,
-                "display_lat": display_lat,
-                "display_lng": display_lon,
-                "type": clean_text(row.get("type")),
-                "content": content,
-                "mode": popup_mode,
-                "photo_query": f"{name} Chicago historic building",
-                "photo_slot_id": "",
-                "photo_fallback_url": google_search_url(f"{name} Chicago historic building"),
-            }
-        )
-
-    return markers
-
-
 def structure_breakdown(data: pd.DataFrame) -> pd.DataFrame:
     breakdown = data.assign(
         structure_type=data["type"].map(normalize_category),
@@ -326,8 +160,8 @@ def load_geojson():
 
 data = load_data()
 
-st.title("Chicago Lost Places")
-st.markdown("Explore how Chicago's architectural landscape has changed over the years through a series of visualizations exploring the how's and why's.")
+st.title("Chicago's Lost Places")
+st.markdown("This dashboard digs deeper into 100 cases of demolition across Chicago's historic structures. It traces patterns of loss across time, cause, replacement types, and neighborhoods.")
 st.divider()
 
 
@@ -528,6 +362,9 @@ geojson = load_geojson()
 df = data
 
 # Scatter Plot Timeline
+st.subheader("Demolition Timeline")
+st.markdown("Each lost site is color coded by their cause and then mapped onto a timeline divided into three eras. There's also dropdown menus below the chart to explain how each era was divided and what each policy is.")
+
 fig = go.Figure()
 
 for era_name, x0, x1, bg_color in [
@@ -619,7 +456,7 @@ st.divider()
 
 # Neighborhood Concentration Chloropleth
 st.subheader("Neighborhood Concentration of Losses")
-st.markdown("Darker neighborhoods indicate a higher concentration of documented landmark losses. Hover over a neighborhood to see how many structures were lost there.")
+st.markdown("Explore how demolitions are spread across Chicago's neighborhoods. Darker areas indicate a higher concentration of documented losses. Hover over a neighborhood to see how many structures were lost there.")
 
 area_counts = df.groupby("community_area").size().reset_index(name="losses")
 
