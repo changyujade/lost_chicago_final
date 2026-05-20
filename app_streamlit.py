@@ -248,6 +248,11 @@ metric_2.metric("Mapped pins", len(mapped))
 metric_3.metric("Missing coordinates", len(unmapped))
 
 st.subheader("Built Era by Structure Type")
+st.markdown(
+        "The middle ring groups places by built-year era. The outer ring breaks each "
+        "era into structure types; larger slices represent more places in the current "
+        "filters. Hover over any slice to see its count and share. Click on the inner ring to isolate the section from the rest of the chart "
+    )
 breakdown = built_century_structure_breakdown(filtered)
 
 if breakdown.empty:
@@ -286,11 +291,7 @@ else:
     )
     apply_sunburst_center_color(sunburst, "Lost Chicago", sunburst_colors["Lost Chicago"])
     st.plotly_chart(sunburst, width="stretch")
-    st.markdown(
-        "The middle ring groups places by built-year era. The outer ring breaks each "
-        "era into structure types; larger slices represent more places in the current "
-        "filters. Hover over any slice to see its count and share."
-    )
+
 
     with st.expander("Built era and structure type counts", expanded=False):
         st.dataframe(
@@ -307,6 +308,11 @@ else:
 
 st.divider()
 st.subheader("Causes of Loss by Replacement Category")
+st.markdown(
+        "Each cell shows how many places share a common cause of loss and replacement type. " \
+        "Darker cells indicate more commonalities. " \
+        "Hovering over the count will share more specific information including percentage overlap."
+    )
 loss_breakdown = cause_replacement_breakdown(filtered)
 
 if loss_breakdown.empty:
@@ -374,11 +380,6 @@ else:
         yaxis=dict(autorange="reversed", title="Cause of loss"),
     )
     st.plotly_chart(loss_chart, width="stretch")
-    st.markdown(
-        "Each cell shows how many places share a cause of loss and replacement "
-        "category. Darker cells indicate more places; hover for the count and "
-        "share within that cause."
-    )
 
     with st.expander("Cause and replacement category counts", expanded=False):
         st.dataframe(
