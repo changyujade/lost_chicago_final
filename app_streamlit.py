@@ -203,7 +203,7 @@ def load_geojson():
 data = load_data()
 
 st.title("Chicago's Lost Places")
-st.markdown("This dashboard examines 100 documented cases of demolition across Chicago's historic structures, tracing patterns of loss across time, cause, replacement types, and neighborhoods. The provided dataset is meant to provide a brief overview of Chicago's development history rather than serve as a comprehensive record.")
+st.markdown("This dashboard examines 100 documented cases of demolition across Chicago's historic structures, tracing patterns of loss across time, cause, replacement types, and neighborhoods. The curated dataset is meant to provide a brief overview of Chicago's development history rather than serve as a comprehensive record.")
 st.divider()
 
 
