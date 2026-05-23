@@ -203,9 +203,7 @@ def load_geojson():
 data = load_data()
 
 st.title("Chicago's Lost Places")
-st.markdown("This dashboard digs deeper into 100 cases of demolition across Chicago's historic structures. It traces patterns of loss across time, cause, replacement types, and neighborhoods. Scroll down to explore the stories behind these losses and how they reflect the city's evolving priorities and challenges." \
-"The data is sourced from various sources, including Ellen Harvey's the Disappointed Tourist Project, Chicago Yimby, Chicagology, Preservation Chicago, and other online sources that documented the demolished cultural sites across the city. "\
-    "We manually selected 100 cases that are culturally and architecturally significant, representing a range of structure types, neighborhoods, demolition eras, and causes of loss. The dataset is not comprehensive but aims to provide a snapshot of the city's lost landmarks and the stories they tell about Chicago's history and development.")
+st.markdown("This dashboard examines 100 documented cases of demolition across Chicago's historic structures, tracing patterns of loss across time, cause, replacement types, and neighborhoods. The curated dataset is meant to provide a brief overview of Chicago's development history rather than serve as a comprehensive record.")
 st.divider()
 
 
