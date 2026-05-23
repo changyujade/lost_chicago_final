@@ -1,4 +1,8 @@
+
 # Chicago Lost Places
+
+## Access the Lost Chicago dashboard 
+https://lostchicagofinal-hfoea2p5s3lkia9jrjncpk.streamlit.app
 
 This package builds a dashboard centering on historic Chicago sites that have been demolished and replaced. 
 
